@@ -1,6 +1,4 @@
-import { useEffect } from "react";
 
-export default function App() {
   useEffect(() => {
     document.title = "My Second Brain App"; // <-- Tab-Titel setzen
   }, []);
