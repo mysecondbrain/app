@@ -2,6 +2,6 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
-  base: '/second-brain-mvp/',
+  base: '/app/',   // <<< ganz wichtig: Repo-Name hier eintragen
   plugins: [react()],
 })
