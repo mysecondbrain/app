@@ -1,3 +1,21 @@
+import { useEffect } from "react";
+
+export default function App() {
+  useEffect(() => {
+    document.title = "My Second Brain App"; // <-- Tab-Titel setzen
+  }, []);
+
+  return (
+    <div className="p-6 max-w-3xl mx-auto">
+      <header className="mb-6 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">My Second Brain App</h1>
+        ...
+      </header>
+      ...
+    </div>
+  );
+}
+
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Mic, Search, Bookmark, Trash2, Wand2, Folder, Tags } from 'lucide-react'
