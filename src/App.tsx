@@ -138,7 +138,7 @@ export default function App() {
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Second Brain</h1>
+        <h1 className="text-2xl font-bold">My Second Brain App</h1>
         <div className="flex gap-2">
           <button
             onClick={toggleRecord}
