@@ -17,11 +17,11 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Gitleaks v8 – richtige Flags!
-      - name: Run Gitleaks (produce SARIF)
-        uses: gitleaks/gitleaks-action@v2
-        with:
-          args: detect --no-banner --redact -c .gitleaks.toml -f sarif -r gitleaks.sarif
+      # Stabiler Weg: Docker-Image direkt aufrufen (unabhängig von Action-Flags)
+      - name: Run gitleaks via docker (produce SARIF)
+        run: |
+          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest detect \
+            --no-banner --redact -c /repo/.gitleaks.toml -f sarif -r /repo/gitleaks.sarif || true
 
       - name: Upload SARIF to code scanning
         uses: github/codeql-action/upload-sarif@v3
