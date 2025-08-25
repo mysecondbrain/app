@@ -6,7 +6,7 @@ This repo follows a strict security posture to protect secrets and user data.
 - Never commit real secrets. Use `.env` files locally and CI/CD secret stores.
 - Backend secrets live in `backend/.env` (not committed). See `backend/.env.example`.
 - Frontend public config lives in `frontend/.env` for Expo (no secrets). See `frontend/.env.example`.
-- All API calls must use relative `/api/*` paths per ingress rules.
+- All API calls must use relative `/api/*` paths per ingress rules or EXPO_PUBLIC_BACKEND_URL.
 
 ## Pre-commit & Scanning
 - Install pre-commit hooks:
@@ -19,25 +19,17 @@ This repo follows a strict security posture to protect secrets and user data.
 If a secret ever leaks:
 1. Rotate the exposed key immediately where it was issued.
 2. Remove it from code and config.
-3. Rewrite history to purge the secret:
-   - Use `git filter-repo` (recommended). Example:
-```
-# install: pip install git-filter-repo
-git filter-repo --path-glob "*.env" --replace-text <(echo "secretreplacement==>REDACTED")
-```
-   - Force-push protected branches after review: `git push --force-with-lease origin main`
-4. Enable GitHub push protection (repo settings) and require status checks.
+3. Rewrite history to purge the secret (or use an orphan export for a clean baseline).
+4. Enable push protection and require status checks.
 
-## Environment Setup
-- Backend:
-  - Copy `backend/.env.example` to `backend/.env` and set `MONGO_URL`, `DB_NAME`, `EMERGENT_LLM_KEY`.
-- Frontend (Expo):
-  - Copy `frontend/.env.example` to `frontend/.env`.
+## Lokaler Speicher & Backups
+- Offline-First: SQLite (expo-sqlite) als primäre Datenquelle. Tabellen: `notes`, `settings`, `audit`.
+- Migrationen: Schema-Version in `settings(schema_version)`; Migrations-Helper im Modul `src/storage/db.ts`.
+- Snapshots (E2E): Lokaler Export/Import in `src/storage/snapshots.ts` mit AES-GCM über `@noble/ciphers`.
+  - Master-Key wird über `expo-secure-store` verwaltet (Recovery-Key als Base58 angezeigt).
+  - Export: erstellt verschlüsselte `.onsnap`-Datei und teilt über native Shares (iOS Dateien/iCloud, Android Drive/Dateien).
+  - Import: Auswahl über Document Picker, Entschlüsselung und Restore aller Tabellen.
 
 ## Development
-- Backend runs at 0.0.0.0:8001, all routes prefixed with `/api`.
-- Frontend uses Expo with file-based routes in `frontend/app`.
-
-## Notes
-- Do not modify protected files: `frontend/.env`, `backend/.env`, `frontend/metro.config.js`.
-- Use `expo-router`. Avoid web-only libraries.
+- Backend runs at 0.0.0.0:8001, routes under `/api`. Reads Emergent LLM key from env.
+- Frontend uses Expo Router. Calls backend via `EXPO_PUBLIC_BACKEND_URL`.
