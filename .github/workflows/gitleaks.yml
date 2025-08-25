@@ -1,40 +1,36 @@
 name: gitleaks
-
 on:
   push:
   pull_request:
 
 jobs:
   scan:
-    name: gitleaks scan
     runs-on: ubuntu-latest
     permissions:
       contents: read
       security-events: write
+      actions: read
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      # Erzeugt IMMER eine SARIF-Datei im Ordner "reports/"
-      - name: Run gitleaks (produce SARIF)
-        run: |
-          mkdir -p reports
-          docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:latest \
-            detect --source=/repo \
-            --config-path /repo/.gitleaks.toml \
-            --no-banner --redact \
-            --report-format sarif \
-            --report-path /repo/reports/gitleaks.sarif \
-            --exit-code 0
-          ls -l reports
+      # Gitleaks v8 – richtige Flags!
+      - name: Run Gitleaks (produce SARIF)
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --no-banner --redact -c .gitleaks.toml -f sarif -r gitleaks.sarif
 
       - name: Upload SARIF to code scanning
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: reports/gitleaks.sarif
+          sarif_file: gitleaks.sarif
 
       - name: Upload SARIF as artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: gitleaks-sarif
-          path: reports/gitleaks.sarif
+          path: gitleaks.sarif
