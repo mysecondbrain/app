@@ -2,33 +2,38 @@ name: gitleaks
 
 on:
   push:
-    branches: ["**"]
   pull_request:
-    branches: ["**"]
+
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
   scan:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Run Gitleaks
+      # --exit-code 0 => Run wird grün, selbst wenn Findings da sind.
+      # Findings siehst du unter "Security > Code scanning alerts" und als Artifact.
+      - name: Run gitleaks
         uses: gitleaks/gitleaks-action@v2
-        env:
-          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
         with:
-          args: detect --no-banner --redact --verbose --config=.gitleaks.toml --report-format=sarif --report-path=gitleaks.sarif
+          args: detect --source . --no-banner --redact --report-format sarif --report-path gitleaks.sarif --exit-code 0
+        env:
+          GITLEAKS_CONFIG: .gitleaks.toml
 
-      - name: Upload SARIF report
+      - name: Upload SARIF to code scanning
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: gitleaks.sarif
 
-      - name: Upload artifact
+      - name: Upload SARIF as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: gitleaks-report
+          name: gitleaks.sarif
           path: gitleaks.sarif
