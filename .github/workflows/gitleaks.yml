@@ -9,23 +9,22 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      security-events: write   # notwendig, um SARIF in "Code scanning" hochladen zu dürfen
+      security-events: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # Gitleaks installieren und als SARIF ausgeben
-      - name: Run gitleaks (generate SARIF)
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | sh -s -- -b /usr/local/bin
-          gitleaks version
-          # SARIF erzeugen; --exit-code 0 => Workflow schlägt nicht fehl, auch wenn Findings existieren
-          gitleaks detect --no-banner \
-            --source . \
-            --report-format sarif \
-            --report-path gitleaks.sarif \
-            --redact \
-            --config .gitleaks.toml \
+      # Offizielle Gitleaks-Action – erzeugt eine SARIF-Datei
+      - name: Run Gitleaks (generate SARIF)
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: >
+            detect
+            --no-banner
+            --redact
+            --report-format sarif
+            --report-path gitleaks.sarif
+            --config-path .gitleaks.toml
             --exit-code 0
 
       - name: Upload SARIF to code scanning
