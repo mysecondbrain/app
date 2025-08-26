@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { initDb, listNotes, createNote, updateNote, Note, cryptoRandomId } from '../src/storage/db';
+import { initDb, listNotes, createNote, Note, cryptoRandomId } from '../src/storage/db';
+import { searchCombined } from '../src/search/search';
 
 export default function Index() {
   const router = useRouter();
@@ -19,10 +20,17 @@ export default function Index() {
 
   const refresh = () => {
     try {
+      if (search.trim()) {
+        // combined search
+        const items = searchCombined(search, { pinnedOnly }, 200) as any as Note[];
+        setNotes(items);
+      } else {
+        const items = listNotes({ search, pinnedOnly, limit: 500 });
+        setNotes(items);
+      }
+    } catch (e) {
       const items = listNotes({ search, pinnedOnly, limit: 500 });
       setNotes(items);
-    } catch (e) {
-      console.warn('listNotes error', e);
     }
   };
 
@@ -54,7 +62,7 @@ export default function Index() {
         <Text style={styles.title}>Offline Notizen</Text>
         <View style={styles.searchRow}>
           <TextInput style={styles.search}
-            placeholder="Suchen..." placeholderTextColor="#888"
+            placeholder="Frag mich natürlichsprachlich..." placeholderTextColor="#888"
             value={search} onChangeText={setSearch}/>
           <TouchableOpacity style={[styles.filterBtn, pinnedOnly && styles.filterBtnActive]} onPress={togglePinnedFilter}>
             <Text style={styles.filterText}>{pinnedOnly ? 'Nur Pin' : 'Alle'}</Text>
