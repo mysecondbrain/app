@@ -1,0 +1,54 @@
+name: EAS Android Preview (APK)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-android-apk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: |
+          corepack enable
+          yarn install --frozen-lockfile || yarn install
+          npx expo install --non-interactive expo-av expo-image-manipulator expo-document-picker expo-file-system expo-sharing expo-secure-store expo-sqlite expo-random @shopify/flash-list
+
+      - name: Login to EAS (token from secrets)
+        env:
+          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          npx eas whoami || npx eas login --token "$EAS_TOKEN"
+
+      - name: Build preview APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EAS_TOKEN }}
+        run: |
+          npx eas build -p android --profile preview --non-interactive --json > build.json
+
+      - name: Extract APK URL
+        id: extract
+        run: |
+          URL=$(jq -r '.[0].artifacts.buildUrl // .artifacts.buildUrl' build.json)
+          echo "APK URL: $URL" | tee apk-url.txt
+          echo "apk_url=$URL" >> $GITHUB_OUTPUT
+
+      - name: Upload APK URL artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-url
+          path: apk-url.txt
+
+      - name: Add URL to summary
+        run: echo "APK URL: ${{ steps.extract.outputs.apk_url }}" >> $GITHUB_STEP_SUMMARY
