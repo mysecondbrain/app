@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator } from 'react-native';
 import { getRecoveryKeyBase58, exportSnapshot, importSnapshotInteractively } from '../../src/storage/snapshots';
+import { Link } from 'expo-router';
 
 export default function SettingsScreen() {
   const [busy, setBusy] = useState(false);
@@ -22,7 +23,7 @@ export default function SettingsScreen() {
   const onExport = async () => {
     try {
       setBusy(true);
-      const p = await exportSnapshot();
+      await exportSnapshot();
       Alert.alert('Export', 'Snapshot erstellt und bereit zum Teilen.');
     } catch (e: any) {
       Alert.alert('Fehler', e.message || 'Unbekannter Fehler');
@@ -64,6 +65,11 @@ export default function SettingsScreen() {
           <TouchableOpacity style={[styles.btn, styles.btnSecondary]} onPress={onImport} disabled={busy}>
             <Text style={styles.btnText}>Snapshot importieren</Text>
           </TouchableOpacity>
+          <Link href="/settings/storage" asChild>
+            <TouchableOpacity style={[styles.btn, { marginTop: 12 }]} disabled={busy}>
+              <Text style={styles.btnText}>Speicherverwaltung</Text>
+            </TouchableOpacity>
+          </Link>
         </View>
 
         {busy ? <ActivityIndicator color="#fff" style={{ marginTop: 8 }} /> : null}
