@@ -1,0 +1,37 @@
+name: Prepare node_modules (frontend)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+          cache-dependency-path: frontend/yarn.lock
+
+      - name: Enable corepack
+        run: corepack enable
+
+      - name: Install deps
+        run: yarn --cwd frontend install --frozen-lockfile || yarn --cwd frontend install
+
+      - name: Pack node_modules
+        run: tar -czf node_modules.tgz -C frontend node_modules
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: node_modules-frontend
+          path: node_modules.tgz
+          if-no-files-found: error
+
+      - name: Show size
+        run: du -sh node_modules.tgz
