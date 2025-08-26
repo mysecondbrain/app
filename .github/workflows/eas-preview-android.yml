@@ -2,19 +2,10 @@ name: EAS Android Preview (APK)
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - clean/offline-first-orphan
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/eas-preview-android.yml'
 
 jobs:
   build-android-apk:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -23,50 +14,33 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
-          cache-dependency-path: frontend/yarn.lock
 
       - name: Enable corepack
         run: corepack enable
 
       - name: Install deps
-        run: yarn install --frozen-lockfile || yarn install
+        run: yarn --cwd frontend install --frozen-lockfile || yarn --cwd frontend install
 
       - name: Install Expo plugins (best-effort)
         run: |
-          npx expo install --non-interactive \
-            expo-av expo-image-manipulator expo-document-picker expo-file-system \
+          cd frontend
+          npx expo install --non-interactive expo-av expo-image-manipulator expo-document-picker expo-file-system \
             expo-sharing expo-secure-store expo-sqlite expo-random @shopify/flash-list || true
 
       - name: Login to EAS
         env:
           EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
         run: |
-          npx eas whoami || npx eas login --token "$EAS_TOKEN"
+          npx --yes eas-cli@latest whoami || npx --yes eas-cli@latest login --token "$EAS_TOKEN"
 
       - name: Build preview APK
+        working-directory: frontend
         env:
           EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
-        run: |
-          npx eas build -p android --profile preview --non-interactive --json > build.json
+        run: npx --yes eas-cli@latest build -p android --profile preview --non-interactive --json > build.json
 
-      - name: Extract APK URL
-        run: |
-          sudo apt-get update && sudo apt-get install -y jq
-          URL=$(jq -r '.[0].artifacts.buildUrl // .artifacts.buildUrl // empty' build.json)
-          if [ -z "$URL" ]; then
-            URL=$(jq -r '.artifacts.buildUrl // empty' build.json)
-          fi
-          echo "APK_URL=$URL" >> $GITHUB_ENV
-          printf "%s\n" "$URL" > apk-url.txt
-
-- name: Show APK URL
-  run: |
-    echo "APK URL: $APK_URL"
-
-
-      - name: Upload artifact (APK URL)
+      - name: Upload build.json
         uses: actions/upload-artifact@v4
         with:
-          name: apk-url
-          path: apk-url.txt
+          name: build-json
+          path: frontend/build.json
