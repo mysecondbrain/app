@@ -38,7 +38,9 @@ export default function Index() {
   const onSave = async () => {
     if (!text.trim()) return;
     const id = cryptoRandomId();
-    await createNote({ id, text: text.trim() });
+    const t = text.trim();
+    await createNote({ id, text: t });
+    try { await upsertEmbedding(id, t); } catch {}
     setText('');
     refresh();
   };
