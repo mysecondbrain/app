@@ -60,12 +60,21 @@ export default function Index() {
 
   const togglePinnedFilter = () => setPinnedOnly((p) => !p);
 
+  function highlightSnippet(text: string, q: string): string {
+    if (!q.trim()) return text.slice(0, 140);
+    const idx = text.toLowerCase().indexOf(q.toLowerCase());
+    const start = Math.max(0, idx - 40);
+    const end = Math.min(text.length, (idx >= 0 ? idx + q.length + 40 : 140));
+    return (start > 0 ? '…' : '') + text.slice(start, end) + (end < text.length ? '…' : '');
+  }
+
   const renderItem = ({ item }: { item: Note }) => (
     <TouchableOpacity style={styles.card} onPress={() => router.push(`/note/${item.id}`)}>
       <View style={styles.rowBetween}>
         <Text numberOfLines={1} style={styles.cardTitle}>{item.text}</Text>
         {item.pinned ? <Text style={styles.pill}>PINNED</Text> : null}
       </View>
+      {search.trim() ? <Text style={styles.snippet}>{highlightSnippet(item.text, search)}</Text> : null}
       <Text style={styles.cardMeta}>{new Date(item.updatedAt).toLocaleString()}</Text>
     </TouchableOpacity>
   );
