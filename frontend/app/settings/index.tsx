@@ -7,6 +7,7 @@ import { reindexAll } from '../../src/search/embeddings';
 import Constants from 'expo-constants';
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [recovery, setRecovery] = useState<string | null>(null);
   const [aiOptIn, setAiOptIn] = useState(false);
@@ -19,6 +20,7 @@ export default function SettingsScreen() {
   const saveOptIn = async (v: boolean) => {
     setAiOptIn(v);
     await setSetting('ai_online_optin', v ? '1' : '0');
+    await logAudit({ id: Math.random().toString(36).slice(2), at: Date.now(), action: 'ai_optin_toggle', meta: { version: Constants.expoConfig?.version || '0.0.0', optin: v } });
   };
 
   const onShowRecovery = async () => {
@@ -54,6 +56,11 @@ export default function SettingsScreen() {
     } catch (e: any) {
       Alert.alert('Fehler', e.message || 'Unbekannter Fehler');
     } finally { setBusy(false); }
+  };
+
+  const rerunOnboarding = async () => {
+    await setSetting('onboarding_done', '0');
+    router.replace('/onboarding');
   };
 
   return (
@@ -98,6 +105,11 @@ export default function SettingsScreen() {
           </Link>
         </View>
 
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Onboarding</Text>
+          <TouchableOpacity style={styles.btn} onPress={rerunOnboarding}><Text style={styles.btnText}>Onboarding erneut durchlaufen</Text></TouchableOpacity>
+        </View>
+
         {busy ? <ActivityIndicator color="#fff" style={{ marginTop: 8 }} /> : null}
       </ScrollView>
     </KeyboardAvoidingView>
@@ -110,7 +122,7 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#111', borderRadius: 10, borderWidth: 1, borderColor: '#222', padding: 12, marginVertical: 8 },
   cardTitle: { color: '#fff', fontWeight: '700', marginBottom: 8 },
   row: { color: '#ccc', marginVertical: 2 },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   btn: { backgroundColor: '#007AFF', borderRadius: 10, paddingVertical: 12, alignItems: 'center', marginTop: 8 },
   btnSecondary: { backgroundColor: '#333' },
   btnText: { color: '#fff', fontWeight: '700' },

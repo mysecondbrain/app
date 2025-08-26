@@ -1,33 +1,40 @@
-# ACCEPTANCE TEST PLAN (Phase 1–3)
+# ACCEPTANCE TEST PLAN (Phase 1–4)
 
 ## Ziel
-Validierung Phase 1–3: Offline-First, E2E-Snapshots inkl. Anhänge, Speicherverwaltung mit Optimieren (Bilder), KI (ENV-basiert) + Offline-Embeddings + Kombi-Suche.
+Validierung Phase 1–4: Offline-First, E2E-Snapshots inkl. Anhänge, Speicherverwaltung mit Optimieren (Bilder), KI (ENV-basiert) + Offline-Embeddings + Kombi-Suche, Onboarding/Consent & Recording-Banner.
 
 ## Voraussetzungen
-- App gestartet (Expo Go/Preview OK). Keine Internetverbindung für Offline-Tests nötig. Für KI optional ENV-Key.
+- App gestartet. Für Phase 3 optional Backend-ENV-Key vorhanden. Keine manuellen Setups nötig.
 
-## Phase 1–2 Tests
+## Phase 1–3 Tests
 (Siehe vorherige Liste in diesem Dokument)
 
-## Phase 3 Tests
-1) KI-Opt-in
-- Settings → „Online-KI erlauben“ auf AN
-- Erwartet: Toggle speichert sich; Detail-View bietet „KI aktualisieren“
+## Phase 4 Tests
+1) Onboarding Gates (blocking)
+- Beim Start ohne „onboarding_done“ → /onboarding wird erzwungen
+- Screen 1: AGB/DS Checkbox setzen → Weiter aktiv → führt zu Screen 2
+- Screen 2: Recording-Hinweis Checkbox setzen → Weiter aktiv → führt zu Screen 3
+- Screen 3: KI-Opt-in optional → Fertig → onboarding_done=1
 
-2) KI-Annotation
-- Notiz-Detail → „KI aktualisieren“
-- Erwartet: Kategorien/Tags/Summary werden gefüllt (bei ENV-Key) oder Fallback ohne Fehler
+2) Audit-Logging
+- Nach Screen 1: audit(consent_accept)
+- Nach Screen 2: audit(recording_ack)
+- Nach Screen 3: audit(ai_optin_toggle, meta.optin)
+- Settings → Recht & Datenschutz zeigt letzte Zeiten; Export CSV/JSON verfügbar
 
-3) Embeddings-Index Rebuild
-- Settings → „Reindex starten“
-- Erwartet: Fortschritt wird angezeigt, danach „Fertig“
+3) Permissions & Recording
+- Voice-Button ohne Recording-Consent → Hinweis (blockiert), kein Permission-Dialog
+- Nach Consent: Voice-Button → Permission-Dialog (Mic), Start/Stop, Banner „AUFNAHME LÄUFT“ sichtbar
 
-4) Kombi-Suche
-- Start → natürlichsprachliche Suche (z. B. „Wo liegt der Schraubenzieher?“)
-- Erwartet: Trefferliste erscheint, sortiert nach Kombi-Score (Keyword + Cosine)
+4) Settings
+- „Onboarding erneut durchlaufen“ führt zurück zu /onboarding beim nächsten Eintritt
+- KI-Opt-in Toggle persistiert und erzeugt audit(ai_optin_toggle)
 
-5) Filter
-- Pinned-Filter und Kategorie/Zeitraum im Code verfügbar (UI Pinned vorhanden, erweiterbar)
+5) Banner
+- Während Aufnahme ist roter Banner in allen Views sichtbar (global)
 
-6) Performance
-- Bei 1k Notizen <150ms für Suchaufruf (profilierbar; deterministischer Embedding-Fallback bietet konstante Zeit)
+Erfolgskriterien
+- Alle Gates blockieren korrekt
+- Audit korrekt geloggt und exportierbar
+- Recording nur nach Consent + Banner sichtbar
+- KI-Opt-in toggelbar und geloggt
