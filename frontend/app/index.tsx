@@ -1,18 +1,20 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, ActivityIndicator, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { Link, useRouter } from 'expo-router';
-import { initDb, listNotes, createNote, Note, cryptoRandomId } from '../src/storage/db';
+import { initDb, listNotes, createNote, Note, cryptoRandomId, getSetting } from '../src/storage/db';
 import { searchCombined } from '../src/search/search';
 import { upsertEmbedding } from '../src/search/embeddings';
+import { useRecording } from '../src/context/RecordingContext';
 
 export default function Index() {
   const router = useRouter();
+  const { isRecording, start, stop } = useRecording();
   const [ready, setReady] = useState(false);
   const [search, setSearch] = useState('');
   const [pinnedOnly, setPinnedOnly] = useState(false);
   const [category, setCategory] = useState('');
-  const [fromDate, setFromDate] = useState(''); // YYYY-MM-DD
-  const [toDate, setToDate] = useState('');   // YYYY-MM-DD
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const [text, setText] = useState('');
   const [notes, setNotes] = useState<Note[]>([]);
 
@@ -22,19 +24,11 @@ export default function Index() {
 
   useEffect(() => { refresh(); }, [search, pinnedOnly, category, fromDate, toDate]);
 
-  function toEpoch(d: string): number | null {
-    if (!d.trim()) return null;
-    const parts = d.split('-');
-    if (parts.length !== 3) return null;
-    const dt = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00Z`).getTime();
-    if (isNaN(dt)) return null;
-    return dt;
-  }
+  function toEpoch(d: string): number | null { if (!d.trim()) return null; const p = d.split('-'); if (p.length !== 3) return null; const t = new Date(`${p[0]}-${p[1]}-${p[2]}T00:00:00Z`).getTime(); return isNaN(t) ? null : t; }
 
   const refresh = () => {
     try {
-      const from = toEpoch(fromDate);
-      const to = toEpoch(toDate);
+      const from = toEpoch(fromDate); const to = toEpoch(toDate);
       if (search.trim()) {
         const items = searchCombined(search, { pinnedOnly, category: category || null, from, to }, 200) as any as Note[];
         setNotes(items);
@@ -56,6 +50,21 @@ export default function Index() {
     try { await upsertEmbedding(id, t); } catch {}
     setText('');
     refresh();
+  };
+
+  const onVoice = async () => {
+    if (getSetting('recording_ack_at') ? false : true) { Alert.alert('Hinweis', 'Bitte zuerst Recording-Hinweis im Onboarding bestätigen.'); return; }
+    if (!isRecording) {
+      const ok = await start();
+      if (!ok) Alert.alert('Hinweis', 'Mikrofonberechtigung erforderlich.');
+    } else {
+      const res = await stop();
+      if (res?.uri) {
+        const id = cryptoRandomId();
+        await createNote({ id, text: 'Sprachnotiz', attachments: [{ uri: res.uri, name: res.uri.split('/').pop(), mime: 'audio/aac', kind: 'audio' }] });
+        refresh();
+      }
+    }
   };
 
   const togglePinnedFilter = () => setPinnedOnly((p) => !p);
@@ -102,7 +111,10 @@ export default function Index() {
         <Text style={styles.hint}>Beispiele: „Wo liegt der Schraubenzieher?“, „Habe ich ‘Ibiza’ & ‘Alex’ erwähnt?“</Text>
 
         <TextInput style={styles.editor} multiline placeholder="Neue Notiz..." placeholderTextColor="#888" value={text} onChangeText={setText}/>
-        <TouchableOpacity style={styles.saveBtn} onPress={onSave}><Text style={styles.saveText}>Speichern</Text></TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity style={[styles.saveBtn, { flex: 1 }]} onPress={onSave}><Text style={styles.saveText}>Speichern</Text></TouchableOpacity>
+          <TouchableOpacity style={[styles.voiceBtn, { flex: 1 }]} onPress={onVoice}><Text style={styles.saveText}>{isRecording ? 'Stop' : 'Merken (Voice)'}</Text></TouchableOpacity>
+        </View>
 
         <FlatList data={notes} keyExtractor={(n) => n.id} renderItem={renderItem} contentContainerStyle={{ paddingBottom: 24 }}/>
       </View>
@@ -111,7 +123,7 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#0c0c0c', paddingHorizontal: 16, paddingTop: 16 },
+  container: { flex: 1, backgroundColor: '#0c0c0c', paddingHorizontal: 16, paddingTop: 24 },
   title: { color: '#fff', fontSize: 20, fontWeight: '700', marginBottom: 12 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0c0c0c' },
   searchRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
@@ -126,10 +138,12 @@ const styles = StyleSheet.create({
   hint: { color: '#888', fontSize: 12, marginBottom: 8 },
   editor: { backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1, borderRadius: 8, color: '#fff', padding: 12, minHeight: 80, textAlignVertical: 'top', marginVertical: 8 },
   saveBtn: { backgroundColor: '#007AFF', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
+  voiceBtn: { backgroundColor: '#0a5', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
   saveText: { color: '#fff', fontWeight: '700' },
   card: { backgroundColor: '#111', borderWidth: 1, borderColor: '#222', borderRadius: 10, padding: 12, marginVertical: 6 },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cardTitle: { color: '#fff', fontSize: 16, flex: 1, marginRight: 8 },
   cardMeta: { color: '#aaa', marginTop: 6, fontSize: 12 },
+  snippet: { color: '#ccc', marginTop: 6 },
   pill: { backgroundColor: '#2a5', color: '#fff', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, overflow: 'hidden' },
 });
