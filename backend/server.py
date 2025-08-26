@@ -11,7 +11,7 @@ import uuid
 from datetime import datetime, timedelta
 import asyncio
 import json
-import httpx
+import requests
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -136,12 +136,11 @@ Text:\n{input.text}
             "max_tokens": 400
         }
         url = f"{EMERGENT_LLM_BASE_URL}/chat/completions"
-        async with httpx.AsyncClient(timeout=AI_TIMEOUT_SECONDS) as client_http:
-            r = await client_http.post(url, headers=headers, json=payload)
-            if r.status_code == 429:
-                raise HTTPException(status_code=429, detail="AI rate limit upstream")
-            r.raise_for_status()
-            return r.json()
+        r = requests.post(url, headers=headers, json=payload, timeout=AI_TIMEOUT_SECONDS)
+        if r.status_code == 429:
+            raise HTTPException(status_code=429, detail="AI rate limit upstream")
+        r.raise_for_status()
+        return r.json()
 
     start = datetime.utcnow()
     # retry with backoff
