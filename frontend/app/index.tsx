@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, Activity
 import { Link, useRouter } from 'expo-router';
 import { initDb, listNotes, createNote, Note, cryptoRandomId } from '../src/storage/db';
 import { searchCombined } from '../src/search/search';
+import { upsertEmbedding } from '../src/search/embeddings';
 
 export default function Index() {
   const router = useRouter();
