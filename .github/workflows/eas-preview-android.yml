@@ -60,8 +60,10 @@ jobs:
           echo "APK_URL=$URL" >> $GITHUB_ENV
           printf "%s\n" "$URL" > apk-url.txt
 
-      - name: Show APK URL
-        run: echo "APK URL: $APK_URL"
+- name: Show APK URL
+  run: |
+    echo "APK URL: $APK_URL"
+
 
       - name: Upload artifact (APK URL)
         uses: actions/upload-artifact@v4
