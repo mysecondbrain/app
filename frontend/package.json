@@ -61,4 +61,9 @@
 "resolutions": {
   "@noble/ciphers": "1.0.0",
   "**/@noble/ciphers": "1.0.0"
+  ,
+"overrides": {
+  "@noble/ciphers": "1.0.0"
+}
+
 }
