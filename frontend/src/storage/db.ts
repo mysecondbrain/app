@@ -1,5 +1,13 @@
 import * as SQLite from 'expo-sqlite';
 
+export type Attachment = {
+  uri: string; // local file uri
+  name?: string;
+  mime?: string;
+  size?: number;
+  kind?: 'image' | 'audio' | 'video' | 'file';
+};
+
 export type Note = {
   id: string;
   text: string;
@@ -9,6 +17,7 @@ export type Note = {
   createdAt: number; // epoch ms
   updatedAt: number; // epoch ms
   deletedAt?: number | null; // epoch ms or null
+  attachments?: Attachment[];
 };
 
 export type AuditEvent = {
@@ -20,7 +29,7 @@ export type AuditEvent = {
 
 const DB_NAME = 'app.db';
 const SCHEMA_VERSION_KEY = 'schema_version';
-const CURRENT_SCHEMA_VERSION = 1;
+const CURRENT_SCHEMA_VERSION = 2; // v2 adds notes.attachments column
 
 let db: SQLite.SQLiteDatabase | null = null;
 
@@ -49,7 +58,8 @@ export async function initDb() {
       pinned INTEGER DEFAULT 0,
       createdAt INTEGER NOT NULL,
       updatedAt INTEGER NOT NULL,
-      deletedAt INTEGER
+      deletedAt INTEGER,
+      attachments TEXT DEFAULT '[]'
     );`);
 
     database.execSync(`CREATE TABLE IF NOT EXISTS audit (
@@ -70,7 +80,14 @@ export async function initDb() {
     if (!row) {
       database.runSync(`INSERT OR REPLACE INTO settings(key, value) VALUES(?, ?)`, [SCHEMA_VERSION_KEY, String(CURRENT_SCHEMA_VERSION)]);
     } else if (version < CURRENT_SCHEMA_VERSION) {
-      // future migrations go here based on version
+      // v1 -> v2: add attachments column if missing
+      if (version < 2) {
+        try {
+          database.execSync(`ALTER TABLE notes ADD COLUMN attachments TEXT DEFAULT '[]';`);
+        } catch (e) {
+          // ignore if already exists
+        }
+      }
       database.runSync(`UPDATE settings SET value=? WHERE key=?`, [String(CURRENT_SCHEMA_VERSION), SCHEMA_VERSION_KEY]);
     }
   });
@@ -81,14 +98,14 @@ function toJson<T>(s: string | null | undefined, fallback: T): T {
   try { return JSON.parse(s) as T; } catch { return fallback; }
 }
 
-export async function createNote(input: { id: string; text: string; tags?: string[]; category?: string | null; pinned?: boolean; timestamp?: number; }) {
+export async function createNote(input: { id: string; text: string; tags?: string[]; category?: string | null; pinned?: boolean; attachments?: Attachment[]; timestamp?: number; }) {
   const database = getDbSync();
   const now = input.timestamp ?? Date.now();
   const pinned = input.pinned ? 1 : 0;
   database.runSync(
-    `INSERT INTO notes (id, text, tags, category, pinned, createdAt, updatedAt, deletedAt)
-     VALUES(?, ?, ?, ?, ?, ?, ?, NULL)`,
-    [input.id, input.text, JSON.stringify(input.tags ?? []), input.category ?? null, pinned, now, now]
+    `INSERT INTO notes (id, text, tags, category, pinned, createdAt, updatedAt, deletedAt, attachments)
+     VALUES(?, ?, ?, ?, ?, ?, ?, NULL, ?)` ,
+    [input.id, input.text, JSON.stringify(input.tags ?? []), input.category ?? null, pinned, now, now, JSON.stringify(input.attachments ?? [])]
   );
   await logAudit({ id: cryptoRandomId(), at: now, action: 'note.create', meta: { id: input.id, pinned, category: input.category } });
 }
@@ -103,9 +120,10 @@ export async function updateNote(id: string, patch: Partial<Omit<Note, 'id'>>) {
   const category = patch.category ?? existing.category;
   const pinned = typeof patch.pinned === 'number' ? patch.pinned : (patch.pinned ? 1 : existing.pinned);
   const deletedAt = patch.deletedAt === undefined ? existing.deletedAt : patch.deletedAt;
+  const attachments = JSON.stringify(patch.attachments ?? toJson<Attachment[]>(existing.attachments, []));
   getDbSync().runSync(
-    `UPDATE notes SET text=?, tags=?, category=?, pinned=?, updatedAt=?, deletedAt=? WHERE id=?`,
-    [text, tags, category, pinned, now, deletedAt ?? null, id]
+    `UPDATE notes SET text=?, tags=?, category=?, pinned=?, updatedAt=?, deletedAt=?, attachments=? WHERE id=?`,
+    [text, tags, category, pinned, now, deletedAt ?? null, attachments, id]
   );
   await logAudit({ id: cryptoRandomId(), at: now, action: 'note.update', meta: { id } });
 }
@@ -128,6 +146,7 @@ export function getNote(id: string): Note | null {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     deletedAt: row.deletedAt ?? null,
+    attachments: toJson<Attachment[]>(row.attachments, []),
   };
 }
 
@@ -161,6 +180,7 @@ export function listNotes(opts?: { search?: string; pinnedOnly?: boolean; limit?
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     deletedAt: row.deletedAt ?? null,
+    attachments: toJson<Attachment[]>(row.attachments, []),
   }));
 }
 
@@ -186,3 +206,5 @@ export function cryptoRandomId(): string {
   // Simple 26-char base36 id
   return Math.random().toString(36).slice(2, 15) + Math.random().toString(36).slice(2, 13);
 }
+
+export { getDbSync };

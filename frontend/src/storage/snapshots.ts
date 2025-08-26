@@ -82,7 +82,19 @@ export async function exportSnapshot(): Promise<string> {
   const notes = db.getAllSync<any>(`SELECT * FROM notes`);
   const settings = db.getAllSync<any>(`SELECT * FROM settings`);
   const audit = db.getAllSync<any>(`SELECT * FROM audit`);
-  const payload = JSON.stringify({ notes, settings, audit, ts: Date.now() });
+
+  // Attachments: we bundle files from documentDirectory/attachments
+  const attachmentsRoot = FileSystem.documentDirectory + 'attachments/';
+  const attachmentsList = await safeReadDir(attachmentsRoot);
+  const files: any[] = [];
+  for (const f of attachmentsList) {
+    if (f.isDirectory) continue;
+    const name = f.uri.split('/').pop() || 'file';
+    const content = await FileSystem.readAsStringAsync(f.uri, { encoding: FileSystem.EncodingType.Base64 });
+    files.push({ name, uri: f.uri, size: f.size || 0, b64: content });
+  }
+
+  const payload = JSON.stringify({ notes, settings, audit, files, ts: Date.now() });
 
   const key = await ensureMasterKey();
   const nonce = getRandomBytes(12);
@@ -120,7 +132,7 @@ export async function importSnapshotInteractively(): Promise<void> {
     db.execSync('DELETE FROM settings;');
     db.execSync('DELETE FROM audit;');
     for (const n of json.notes) {
-      db.runSync(`INSERT INTO notes(id,text,tags,category,pinned,createdAt,updatedAt,deletedAt) VALUES(?,?,?,?,?,?,?,?)`, [n.id, n.text, n.tags, n.category, n.pinned, n.createdAt, n.updatedAt, n.deletedAt ?? null]);
+      db.runSync(`INSERT INTO notes(id,text,tags,category,pinned,createdAt,updatedAt,deletedAt,attachments) VALUES(?,?,?,?,?,?,?,?,?)`, [n.id, n.text, n.tags, n.category, n.pinned, n.createdAt, n.updatedAt, n.deletedAt ?? null, n.attachments ?? '[]']);
     }
     for (const s of json.settings) {
       db.runSync(`INSERT INTO settings(key,value) VALUES(?,?)`, [s.key, s.value]);
@@ -129,4 +141,24 @@ export async function importSnapshotInteractively(): Promise<void> {
       db.runSync(`INSERT INTO audit(id,at,action,meta) VALUES(?,?,?,?)`, [a.id, a.at, a.action, a.meta]);
     }
   });
+
+  // Restore files to attachments directory
+  const attachmentsRoot = FileSystem.documentDirectory + 'attachments/';
+  try { await FileSystem.makeDirectoryAsync(attachmentsRoot, { intermediates: true }); } catch {}
+  if (Array.isArray(json.files)) {
+    for (const f of json.files) {
+      const outPath = attachmentsRoot + (f.name || 'file');
+      await FileSystem.writeAsStringAsync(outPath, f.b64, { encoding: FileSystem.EncodingType.Base64 });
+    }
+  }
+}
+
+async function safeReadDir(path: string): Promise<FileSystem.FileInfo[]> {
+  try {
+    const entries = await FileSystem.readDirectoryAsync(path);
+    const infos = await Promise.all(entries.map((name) => FileSystem.getInfoAsync(path + name)));
+    return infos as FileSystem.FileInfo[];
+  } catch {
+    return [] as any;
+  }
 }
