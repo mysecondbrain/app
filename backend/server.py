@@ -93,10 +93,10 @@ async def annotate_text(req: Request, input: AnnotationRequest):
     rate_guard(req.client.host if req.client else 'unknown')
 
     if not EMERGENT_LLM_KEY:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="AI service not configured. Please set EMERGENT_LLM_KEY in backend environment."
-        )
+        # Privacy-first: no online call, return deterministic fallback below
+        EMERGENT_MISSING = True
+    else:
+        EMERGENT_MISSING = False
 
     async def call_llm() -> Dict[str, Any]:
         headers = {
