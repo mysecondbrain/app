@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Switch } from 'react-native';
 import { getRecoveryKeyBase58, exportSnapshot, importSnapshotInteractively } from '../../src/storage/snapshots';
-import { Link } from 'expo-router';
-import { getSetting, setSetting } from '../../src/storage/db';
+import { Link, useRouter } from 'expo-router';
+import { getSetting, setSetting, logAudit } from '../../src/storage/db';
 import { reindexAll } from '../../src/search/embeddings';
+import Constants from 'expo-constants';
 
 export default function SettingsScreen() {
   const [busy, setBusy] = useState(false);
