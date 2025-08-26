@@ -14,14 +14,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: yarn
-          cache-dependency-path: frontend/yarn.lock
 
-      - name: Enable corepack
+      - name: Enable corepack (ok for npm too)
         run: corepack enable
 
-      - name: Install deps
-        run: yarn --cwd frontend install --frozen-lockfile || yarn --cwd frontend install
+      - name: Install deps (npm, honors overrides)
+        run: |
+          npm --version
+          npm --prefix frontend ci || npm --prefix frontend install
 
       - name: Pack node_modules
         run: tar -czf node_modules.tgz -C frontend node_modules
