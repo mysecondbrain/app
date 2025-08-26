@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { getNote, updateNote, getSetting } from '../../src/storage/db';
+import { getNote, updateNote, getSetting, softDeleteNote } from '../../src/storage/db';
+import { upsertEmbedding, deleteEmbedding } from '../../src/search/embeddings';
 
 export default function NoteDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -26,15 +27,27 @@ export default function NoteDetail() {
   }, [id]);
 
   const onSave = async () => {
+    const t = text;
     await updateNote(String(id), {
-      text,
+      text: t,
       tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
       pinned,
       category: category || null,
       // @ts-ignore
       summary,
     });
+    try { await upsertEmbedding(String(id), t); } catch {}
     router.back();
+  };
+
+  const onDelete = async () => {
+    try {
+      await softDeleteNote(String(id));
+      try { await deleteEmbedding(String(id)); } catch {}
+      router.back();
+    } catch (e: any) {
+      Alert.alert('Fehler', e.message || 'Unbekannter Fehler');
+    }
   };
 
   const togglePin = () => setPinned((p) => (p ? 0 : 1));
@@ -62,9 +75,12 @@ export default function NoteDetail() {
       <View style={styles.container}>
         <View style={styles.rowBetween}>
           <Text style={styles.title}>Notiz</Text>
-          <TouchableOpacity style={[styles.pinBtn, pinned ? styles.pinOn : styles.pinOff]} onPress={togglePin}>
-            <Text style={styles.pinText}>{pinned ? 'Unpin' : 'Pin'}</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TouchableOpacity style={[styles.btnSmall, { backgroundColor: '#a33' }]} onPress={onDelete}><Text style={styles.btnText}>Löschen</Text></TouchableOpacity>
+            <TouchableOpacity style={[styles.pinBtn, pinned ? styles.pinOn : styles.pinOff]} onPress={togglePin}>
+              <Text style={styles.pinText}>{pinned ? 'Unpin' : 'Pin'}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <TextInput style={styles.input} multiline value={text} onChangeText={setText} placeholder="Text" placeholderTextColor="#888"/>
         <TextInput style={styles.input} value={tags} onChangeText={setTags} placeholder="Tags (comma separated)" placeholderTextColor="#888"/>
@@ -82,6 +98,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0c0c0c', padding: 16 },
   title: { color: '#fff', fontSize: 18, fontWeight: '700' },
   rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  btnSmall: { borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 },
   pinBtn: { borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8 },
   pinOn: { backgroundColor: '#2a5' },
   pinOff: { backgroundColor: '#333' },

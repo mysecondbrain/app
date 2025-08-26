@@ -10,6 +10,9 @@ export default function Index() {
   const [ready, setReady] = useState(false);
   const [search, setSearch] = useState('');
   const [pinnedOnly, setPinnedOnly] = useState(false);
+  const [category, setCategory] = useState('');
+  const [fromDate, setFromDate] = useState(''); // YYYY-MM-DD
+  const [toDate, setToDate] = useState('');   // YYYY-MM-DD
   const [text, setText] = useState('');
   const [notes, setNotes] = useState<Note[]>([]);
 
@@ -17,13 +20,23 @@ export default function Index() {
     (async () => { await initDb(); setReady(true); refresh(); })();
   }, []);
 
-  useEffect(() => { refresh(); }, [search, pinnedOnly]);
+  useEffect(() => { refresh(); }, [search, pinnedOnly, category, fromDate, toDate]);
+
+  function toEpoch(d: string): number | null {
+    if (!d.trim()) return null;
+    const parts = d.split('-');
+    if (parts.length !== 3) return null;
+    const dt = new Date(`${parts[0]}-${parts[1]}-${parts[2]}T00:00:00Z`).getTime();
+    if (isNaN(dt)) return null;
+    return dt;
+  }
 
   const refresh = () => {
     try {
+      const from = toEpoch(fromDate);
+      const to = toEpoch(toDate);
       if (search.trim()) {
-        // combined search
-        const items = searchCombined(search, { pinnedOnly }, 200) as any as Note[];
+        const items = searchCombined(search, { pinnedOnly, category: category || null, from, to }, 200) as any as Note[];
         setNotes(items);
       } else {
         const items = listNotes({ search, pinnedOnly, limit: 500 });
@@ -72,6 +85,12 @@ export default function Index() {
           </TouchableOpacity>
           <Link href="/settings" asChild><TouchableOpacity style={styles.settingsBtn}><Text style={styles.settingsText}>⚙︎</Text></TouchableOpacity></Link>
         </View>
+        <View style={styles.filters}>
+          <TextInput style={styles.smallInput} placeholder="Kategorie" placeholderTextColor="#888" value={category} onChangeText={setCategory}/>
+          <TextInput style={styles.smallInput} placeholder="Von (YYYY-MM-DD)" placeholderTextColor="#888" value={fromDate} onChangeText={setFromDate}/>
+          <TextInput style={styles.smallInput} placeholder="Bis (YYYY-MM-DD)" placeholderTextColor="#888" value={toDate} onChangeText={setToDate}/>
+        </View>
+        <Text style={styles.hint}>Beispiele: „Wo liegt der Schraubenzieher?“, „Habe ich ‘Ibiza’ & ‘Alex’ erwähnt?“</Text>
 
         <TextInput style={styles.editor} multiline placeholder="Neue Notiz..." placeholderTextColor="#888" value={text} onChangeText={setText}/>
         <TouchableOpacity style={styles.saveBtn} onPress={onSave}><Text style={styles.saveText}>Speichern</Text></TouchableOpacity>
@@ -93,6 +112,9 @@ const styles = StyleSheet.create({
   filterText: { color: '#fff' },
   settingsBtn: { backgroundColor: '#222', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 },
   settingsText: { color: '#fff' },
+  filters: { flexDirection: 'row', gap: 8, marginBottom: 4 },
+  smallInput: { flex: 1, backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1, borderRadius: 8, color: '#fff', paddingHorizontal: 12, paddingVertical: 8 },
+  hint: { color: '#888', fontSize: 12, marginBottom: 8 },
   editor: { backgroundColor: '#1a1a1a', borderColor: '#333', borderWidth: 1, borderRadius: 8, color: '#fff', padding: 12, minHeight: 80, textAlignVertical: 'top', marginVertical: 8 },
   saveBtn: { backgroundColor: '#007AFF', borderRadius: 10, paddingVertical: 14, alignItems: 'center', marginBottom: 8 },
   saveText: { color: '#fff', fontWeight: '700' },
