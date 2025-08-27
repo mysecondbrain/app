@@ -18,7 +18,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-  - name: Trigger EAS Build (GraphQL v2)
+  name: 
+    Trigger: EAS Build (GraphQL v2)
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       EAS_PROJECT_ID: ${{ inputs.EAS_PROJECT_ID }}
@@ -45,14 +46,15 @@ jobs:
       curl -f -sS -H "Content-Type: application/json" -H "Authorization: Bearer ${EXPO_TOKEN}" \
         -X POST --data @graphql.json https://api.expo.dev/v2/graphql | tee build_trigger_response.json
 
-  - name: Parse build id
+    name: Parse build id
     id: parse
-    run: |
+  run:
+      |
       BUILD_ID=$(cat build_trigger_response.json | python3 -c "import sys, json; d=json.load(sys.stdin); print(d['data']['createBuild']['build']['id'])")
       echo "build_id=${BUILD_ID}" >> $GITHUB_OUTPUT
       echo "Build ID: ${BUILD_ID}"
 
-  - name: Poll build status
+    name: Poll build status
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
       BUILD_ID: ${{ steps.parse.outputs.build_id }}
