@@ -25,17 +25,19 @@ jobs:
           yarn install --frozen-lockfile || yarn install
           npx expo install --non-interactive expo-av expo-image-manipulator expo-document-picker expo-file-system expo-sharing expo-secure-store expo-sqlite expo-random @shopify/flash-list
 
-      - name: Login to EAS (token from secrets)
-        env:
-          EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
-        run: |
-          npx eas whoami || npx eas login --token "$EAS_TOKEN"
+     - name: Login to EAS (token from secrets)
+  env:
+    EAS_TOKEN: ${{ secrets.EAS_TOKEN }}
+  run: |
+    npx eas whoami || npx eas login --token "$EAS_TOKEN"
 
-      - name: Build preview APK
-        env:
-          EXPO_TOKEN: ${{ secrets.EAS_TOKEN }}
-        run: |
-          npx eas build -p android --profile preview --non-interactive --json > build.json
+- name: Build preview APK
+  env:
+    EXPO_TOKEN: ${{ secrets.EAS_TOKEN }}    # oder: ${{ secrets.EXPO_TOKEN }}
+    EAS_PROJECT_ID: ${{ secrets.EAS_PROJECT_ID }}
+  run: |
+    npx eas build -p android --profile preview --non-interactive --json \
+      --project-id $EAS_PROJECT_ID > build.json
 
       - name: Extract APK URL
         id: extract
