@@ -1,9 +1,6 @@
 name: EAS Android Build (Quick, Artifact-driven)
-
 on: workflow_dispatch: inputs: EAS_PROJECT_ID: description: "Expo/EAS Project ID" required: true BUILD_PROFILE: description: "EAS build profile (development/preview/production)" required: false default: "preview"
-
 jobs: trigger: runs-on: ubuntu-latest steps: - name: Checkout uses: actions/checkout@v4
-
   - name: Trigger EAS Build (GraphQL v2)
     env:
       EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
